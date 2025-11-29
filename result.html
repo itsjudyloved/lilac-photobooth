@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photobooth Result 🎉</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>The Lilac Strip</h1>
+    <p class="subtitle">Your photos are ready! Choose a frame and download</p>
+
+    <div id="frame-selector-result">
+      <label for="frame-select" class="panel-label">Choose Frame:</label>
+      <select id="frame-select" class="frame-select">
+        <option value="1" selected>Frame 1</option>
+        <option value="2">Frame 2</option>
+        <option value="3">Frame 3</option>
+        <option value="4">Frame 4</option>
+      </select>
+    </div>
+
+    <div id="result-wrapper">
+      <canvas id="result-canvas" width="600" height="1800"></canvas>
+    </div>
+
+    <div class="button-group">
+      <button class="btn btn-primary" id="download-btn">Download Photo</button>
+      <button class="btn btn-secondary" id="retake-btn">Retake Photos</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('result-canvas');
+    const ctx = canvas.getContext('2d');
+    const downloadBtn = document.getElementById('download-btn');
+    const retakeBtn = document.getElementById('retake-btn');
+    const frameSelect = document.getElementById('frame-select');
+    
+    let photoboothData = null;
+    let currentFrameImg = new Image();
+    // crossOrigin removed - not needed for same-origin requests
+    
+    // Cache for frame data URLs to avoid tainted canvas issues
+    const frameDataURLCache = {};
+
+    // Load photobooth data from localStorage
+    const savedData = localStorage.getItem('photoboothData');
+    if (savedData) {
+      try {
+        photoboothData = JSON.parse(savedData);
+        // Set canvas dimensions
+        canvas.width = photoboothData.canvasWidth;
+        canvas.height = photoboothData.canvasHeight;
+        // Load initial frame
+        loadFrame(1);
+      } catch (err) {
+        console.error('Error parsing photobooth data:', err);
+        showError('Failed to load photos. Please retake.');
+        downloadBtn.disabled = true;
+      }
+    } else {
+      // Fallback: try old format (photoboothResult)
+      const imageData = localStorage.getItem('photoboothResult');
+      if (imageData) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setTimeout(() => {
+            scaleCanvas();
+            // Enable download for fallback format
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download Photo';
+            console.log('Fallback image loaded, download ready');
+          }, 100);
+        };
+        img.onerror = () => {
+          showError('Failed to load image.');
+          downloadBtn.disabled = true;
+        };
+        img.src = imageData;
+        // Disable frame selector for old format (but keep it visible)
+        frameSelect.disabled = true;
+        // Show a message that frame selection is not available for old format
+        const label = frameSelect.parentElement.querySelector('label');
+        if (label) {
+          label.textContent = 'Choose Frame: (Not available for old format - please retake photos)';
+        }
+      } else {
+        showError('No photo found. Please take a photo first.');
+        downloadBtn.disabled = true;
+        frameSelect.disabled = true;
+      }
+    }
+
+    function scaleCanvas() {
+      // Scale canvas for display while maintaining aspect ratio
+      // Fit within the container without causing scroll
+      const resultWrapper = document.getElementById('result-wrapper');
+      const container = document.querySelector('.container');
+      if (!resultWrapper || !container) return;
+      
+      const containerWidth = container.clientWidth - 40; // Account for padding
+      const maxWidth = Math.min(resultWrapper.clientWidth - 20, containerWidth);
+      const maxHeight = window.innerHeight - 220; // Account for header, padding, buttons, and controls (reduced)
+      const widthScale = maxWidth / canvas.width;
+      const heightScale = maxHeight / canvas.height;
+      const scale = Math.min(widthScale, heightScale, 1); // Don't scale up, only down
+      canvas.style.width = (canvas.width * scale) + 'px';
+      canvas.style.height = (canvas.height * scale) + 'px';
+    }
+
+    // Recalculate canvas size on window resize
+    window.addEventListener('resize', () => {
+      if (photoboothData || localStorage.getItem('photoboothResult')) {
+        scaleCanvas();
+      }
+    });
+
+    function showError(message) {
+      ctx.fillStyle = '#333';
+      ctx.font = "24px Arial";
+      ctx.textAlign = 'center';
+      ctx.fillText(message, canvas.width / 2, canvas.height / 2);
+    }
+
+    function loadFrame(frameNumber) {
+      if (!photoboothData) return;
+      
+      // Reset image to ensure onload fires even if same frame is selected
+      currentFrameImg = new Image();
+      // Remove crossOrigin for same-origin requests to avoid CORS issues
+      
+      currentFrameImg.onload = () => {
+        console.log('Frame loaded successfully:', currentFrameImg.src);
+        
+        // Convert frame to data URL and cache it to avoid tainted canvas issues
+        if (!frameDataURLCache[frameNumber]) {
+          try {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = currentFrameImg.naturalWidth;
+            tempCanvas.height = currentFrameImg.naturalHeight;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(currentFrameImg, 0, 0);
+            
+            try {
+              frameDataURLCache[frameNumber] = tempCanvas.toDataURL('image/png');
+              console.log(`Frame ${frameNumber} converted to data URL and cached`);
+            } catch (e) {
+              // If conversion fails (tainted), we'll handle it in download
+              console.warn(`Could not convert frame ${frameNumber} to data URL:`, e);
+              frameDataURLCache[frameNumber] = null; // Mark as failed
+            }
+          } catch (e) {
+            console.warn(`Could not create data URL for frame ${frameNumber}:`, e);
+            frameDataURLCache[frameNumber] = null;
+          }
+        }
+        
+        renderComposite();
+      };
+      currentFrameImg.onerror = (e) => {
+        const framePath = `assets/frames/Frame ${frameNumber}.png`;
+        console.error('Failed to load frame image:', {
+          attemptedPath: framePath,
+          encodedPath: encodeURI(framePath),
+          protocol: window.location.protocol,
+          host: window.location.host,
+          error: e
+        });
+        
+        // Check if running from file:// protocol (won't work)
+        if (window.location.protocol === 'file:') {
+          showError('Cannot load images from file:// protocol. Please use a web server (localhost or deployed site).');
+        } else {
+          showError(`Failed to load frame ${frameNumber}. Path: ${framePath}`);
+        }
+      };
+      
+      // Encode the URL properly to handle spaces in filename
+      const framePath = `assets/frames/Frame ${frameNumber}.png`;
+      currentFrameImg.src = encodeURI(framePath);
+      console.log('Attempting to load frame:', currentFrameImg.src);
+      
+      // If image is already cached, onload might not fire
+      if (currentFrameImg.complete && currentFrameImg.naturalWidth > 0) {
+        // Trigger onload manually
+        currentFrameImg.onload();
+      }
+    }
+
+    function renderComposite() {
+      if (!photoboothData) return;
+      
+      // Wait for frame to be ready
+      if (!currentFrameImg.complete || currentFrameImg.naturalWidth === 0) {
+        // Frame not ready yet, wait for it
+        currentFrameImg.onload = () => {
+          renderComposite();
+        };
+        return;
+      }
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw frame first as background
+      ctx.drawImage(currentFrameImg, 0, 0, canvas.width, canvas.height);
+      
+      // Draw photos on top of frame at their positions
+      let loadedCount = 0;
+      const totalPhotos = photoboothData.photos.length;
+      
+      // Disable download while rendering
+      downloadBtn.disabled = true;
+      downloadBtn.textContent = 'Loading...';
+      
+      photoboothData.photos.forEach((photo, index) => {
+        const photoImg = new Image();
+        photoImg.onload = () => {
+          ctx.drawImage(photoImg, photo.x, photo.y, photo.width, photo.height);
+          loadedCount++;
+          // Scale canvas and enable download after all photos are loaded
+          if (loadedCount === totalPhotos) {
+            // Small delay to ensure layout is rendered
+            setTimeout(() => {
+              scaleCanvas();
+              // Enable download button once everything is rendered
+              downloadBtn.disabled = false;
+              downloadBtn.textContent = 'Download Photo';
+              console.log('Composite rendered, download ready');
+            }, 100);
+          }
+        };
+        photoImg.onerror = () => {
+          console.error(`Failed to load photo ${index + 1}`);
+          loadedCount++;
+          // Still scale even if some photos fail
+          if (loadedCount === totalPhotos) {
+            scaleCanvas();
+            // Enable download even if some photos failed
+            downloadBtn.disabled = false;
+            downloadBtn.textContent = 'Download Photo';
+            console.warn('Composite rendered with some errors, download enabled');
+          }
+        };
+        photoImg.src = photo.data;
+      });
+    }
+
+    // Frame selection handler
+    frameSelect.addEventListener('change', (e) => {
+      const selectedFrame = parseInt(e.target.value);
+      loadFrame(selectedFrame);
+    });
+
+    // Download button
+    downloadBtn.addEventListener('click', async () => {
+      try {
+        // Check if we have data
+        if (!photoboothData) {
+          // Try fallback format
+          const fallbackData = localStorage.getItem('photoboothResult');
+          if (fallbackData) {
+            // For fallback, try to download directly
+            try {
+              const link = document.createElement('a');
+              const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+              link.download = `photobooth-strip-${timestamp}.png`;
+              link.href = fallbackData;
+              document.body.appendChild(link);
+              link.click();
+              setTimeout(() => document.body.removeChild(link), 100);
+              downloadBtn.textContent = 'Downloaded!';
+              setTimeout(() => downloadBtn.textContent = 'Download Photo', 2000);
+              return;
+            } catch (e) {
+              throw new Error('Failed to download fallback image');
+            }
+          }
+          throw new Error('No photobooth data available');
+        }
+        
+        console.log('Generating download from fresh canvas...');
+        console.log('Canvas dimensions:', photoboothData.canvasWidth, 'x', photoboothData.canvasHeight);
+        
+        // Always create a fresh canvas for download to avoid tainted canvas issues
+        const downloadCanvas = document.createElement('canvas');
+        downloadCanvas.width = photoboothData.canvasWidth;
+        downloadCanvas.height = photoboothData.canvasHeight;
+        const downloadCtx = downloadCanvas.getContext('2d');
+        
+        if (!downloadCtx) {
+          throw new Error('Failed to create download canvas context');
+        }
+        
+        // Use cached frame data URL if available, otherwise try to load as blob
+        const selectedFrame = frameSelect.value;
+        const cachedFrameDataURL = frameDataURLCache[selectedFrame];
+        
+        if (cachedFrameDataURL) {
+          // Use cached data URL (won't taint canvas)
+          console.log('Using cached frame data URL');
+          const frameImg = new Image();
+          await new Promise((resolve) => {
+            frameImg.onload = () => {
+              try {
+                downloadCtx.drawImage(frameImg, 0, 0, downloadCanvas.width, downloadCanvas.height);
+                resolve();
+              } catch (err) {
+                console.warn('Failed to draw cached frame:', err);
+                resolve(); // Continue without frame
+              }
+            };
+            frameImg.onerror = () => {
+              console.warn('Cached frame data URL failed to load');
+              resolve(); // Continue without frame
+            };
+            frameImg.src = cachedFrameDataURL;
+          });
+        } else {
+          // Try to load frame as blob and convert to data URL (works even with file://)
+          console.log('Loading frame as blob to avoid tainting...');
+          const framePath = `assets/frames/Frame ${selectedFrame}.png`;
+          
+          try {
+            // Try to fetch as blob (works with file:// in some browsers)
+            const response = await fetch(encodeURI(framePath));
+            if (response.ok) {
+              const blob = await response.blob();
+              const frameDataURL = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+              });
+              
+              // Cache it
+              frameDataURLCache[selectedFrame] = frameDataURL;
+              
+              // Use the data URL
+              const frameImg = new Image();
+              await new Promise((resolve) => {
+                frameImg.onload = () => {
+                  try {
+                    downloadCtx.drawImage(frameImg, 0, 0, downloadCanvas.width, downloadCanvas.height);
+                    resolve();
+                  } catch (err) {
+                    console.warn('Failed to draw frame from blob:', err);
+                    resolve();
+                  }
+                };
+                frameImg.onerror = () => {
+                  console.warn('Frame blob failed to load as image');
+                  resolve();
+                };
+                frameImg.src = frameDataURL;
+              });
+            } else {
+              throw new Error('Failed to fetch frame');
+            }
+          } catch (fetchError) {
+            // Fallback: try loading as image (may taint, but we'll continue without frame if it fails)
+            console.warn('Fetch failed, trying direct image load:', fetchError);
+            const frameImg = new Image();
+            await new Promise((resolve) => {
+              frameImg.onload = () => {
+                try {
+                  downloadCtx.drawImage(frameImg, 0, 0, downloadCanvas.width, downloadCanvas.height);
+                  resolve();
+                } catch (err) {
+                  console.warn('Failed to draw frame (may be tainted):', err);
+                  // Continue without frame - photos will still download
+                  resolve();
+                }
+              };
+              frameImg.onerror = () => {
+                console.warn('Frame image failed to load');
+                resolve(); // Continue without frame
+              };
+              frameImg.src = encodeURI(framePath);
+            });
+          }
+        }
+        
+        // Draw photos on top (these are data URLs, so they won't taint)
+        const totalPhotos = photoboothData.photos.length;
+        if (totalPhotos > 0) {
+          await Promise.all(photoboothData.photos.map((photo, index) => {
+            return new Promise((resolve) => {
+              const photoImg = new Image();
+              photoImg.onload = () => {
+                try {
+                  downloadCtx.drawImage(photoImg, photo.x, photo.y, photo.width, photo.height);
+                } catch (err) {
+                  console.error(`Failed to draw photo ${index + 1}:`, err);
+                }
+                resolve();
+              };
+              photoImg.onerror = () => {
+                console.error(`Failed to load photo ${index + 1} for download`);
+                resolve(); // Continue even if photo fails
+              };
+              photoImg.src = photo.data;
+            });
+          }));
+        }
+        
+        // Generate data URL from fresh canvas
+        let dataURL;
+        try {
+          dataURL = downloadCanvas.toDataURL('image/png');
+          if (!dataURL || dataURL === 'data:,') {
+            throw new Error('Failed to generate image data');
+          }
+          console.log('Data URL generated, length:', dataURL.length);
+        } catch (e) {
+          if (e.name === 'SecurityError' || e.message.includes('tainted')) {
+            // Canvas is tainted - try downloading without frame
+            console.warn('Canvas tainted, attempting download without frame...');
+            
+            // Create a new canvas with just photos (no frame)
+            const photosOnlyCanvas = document.createElement('canvas');
+            photosOnlyCanvas.width = photoboothData.canvasWidth;
+            photosOnlyCanvas.height = photoboothData.canvasHeight;
+            const photosOnlyCtx = photosOnlyCanvas.getContext('2d');
+            
+            // Fill with white background
+            photosOnlyCtx.fillStyle = '#FFFFFF';
+            photosOnlyCtx.fillRect(0, 0, photosOnlyCanvas.width, photosOnlyCanvas.height);
+            
+            // Draw only photos
+            await Promise.all(photoboothData.photos.map((photo) => {
+              return new Promise((resolve) => {
+                const photoImg = new Image();
+                photoImg.onload = () => {
+                  try {
+                    photosOnlyCtx.drawImage(photoImg, photo.x, photo.y, photo.width, photo.height);
+                  } catch (err) {
+                    console.error('Failed to draw photo:', err);
+                  }
+                  resolve();
+                };
+                photoImg.onerror = () => resolve();
+                photoImg.src = photo.data;
+              });
+            }));
+            
+            // Try to get data URL from photos-only canvas
+            try {
+              dataURL = photosOnlyCanvas.toDataURL('image/png');
+              if (!dataURL || dataURL === 'data:,') {
+                throw new Error('Failed to generate photos-only image');
+              }
+              console.log('Downloading photos without frame due to tainted canvas');
+            } catch (e2) {
+              throw new Error('Cannot download: Canvas is tainted and photos-only download also failed. Please use a web server (http://localhost) instead of opening the file directly (file://).');
+            }
+          } else {
+            throw new Error(`Failed to generate image: ${e.message}`);
+          }
+        }
+        
+        // Create download link
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+        link.download = `photobooth-strip-${timestamp}.png`;
+        link.href = dataURL;
+        
+        // Append to body, click, then remove
+        document.body.appendChild(link);
+        link.click();
+        
+        // Remove link after a short delay
+        setTimeout(() => {
+          document.body.removeChild(link);
+        }, 100);
+        
+        // Visual feedback
+        downloadBtn.textContent = 'Downloaded!';
+        setTimeout(() => {
+          downloadBtn.textContent = 'Download Photo';
+        }, 2000);
+        
+        console.log('Download initiated successfully');
+      } catch (err) {
+        console.error('Download error:', err);
+        console.error('Error details:', {
+          message: err.message,
+          name: err.name,
+          stack: err.stack
+        });
+        alert(`Failed to download image: ${err.message}\n\nPlease check the browser console for details.`);
+      }
+    });
+
+    // Retake button
+    retakeBtn.addEventListener('click', () => {
+      if (confirm('Are you sure you want to retake all photos?')) {
+        localStorage.removeItem('photoboothData');
+        localStorage.removeItem('photoboothResult');
+        window.location.href = 'index.html';
+      }
+    });
+  </script>
+</body>
+</html>
+

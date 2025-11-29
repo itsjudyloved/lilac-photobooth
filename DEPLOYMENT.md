@@ -1,7 +1,7 @@
 # Deployment Guide for Photobooth Application
 
 ## Requirements
-- PHP hosting (for .php files)
+- Static hosting (HTML/CSS/JavaScript)
 - HTTPS support (required for camera access)
 - Modern web server
 
@@ -16,8 +16,8 @@
    - Upload all files maintaining the folder structure:
      ```
      /public_html/
-     ├── index.php
-     ├── result.php
+     ├── index.html
+     ├── result.html
      ├── script.js
      ├── style.css
      └── assets/
@@ -47,20 +47,14 @@
 
 ---
 
-## Option 3: Netlify (Free - Requires Conversion)
+## Option 3: Netlify (Free - Recommended)
 
-**Note:** Netlify doesn't support PHP natively. You would need to:
-1. Convert `.php` files to `.html` files
-2. Use Netlify's redirects for routing
-3. Deploy via GitHub integration
+**Note:** Netlify supports static sites perfectly. Files are already converted to HTML!
 
 ### Steps:
-1. **Convert PHP to HTML:**
-   - Rename `index.php` → `index.html`
-   - Rename `result.php` → `result.html`
-   - Update any PHP references in JavaScript
+1. **Files are already HTML** - no conversion needed!
 
-2. **Create `netlify.toml`:**
+2. **Create `netlify.toml` (optional):**
    ```toml
    [[redirects]]
      from = "/"
@@ -75,9 +69,9 @@
 
 ---
 
-## Option 4: Vercel (Free - Requires Conversion)
+## Option 4: Vercel (Free - Recommended)
 
-Similar to Netlify, requires converting PHP to HTML or using serverless functions.
+Perfect for static sites! Files are already HTML, so no conversion needed.
 
 ---
 
@@ -97,38 +91,26 @@ Similar to Netlify, requires converting PHP to HTML or using serverless function
 
 ---
 
-## Option 6: GitHub Pages (Not Recommended)
+## Option 6: GitHub Pages (Free)
 
-**GitHub Pages doesn't support PHP.** You would need to:
-- Convert all `.php` files to `.html`
-- Use client-side routing
-- Deploy static files only
+**GitHub Pages supports static HTML sites perfectly!**
 
----
-
-## Quick Conversion Guide (For Static Hosting)
-
-If you want to use Netlify/Vercel/GitHub Pages:
-
-1. **Rename files:**
-   ```bash
-   mv index.php index.html
-   mv result.php result.html
-   ```
-
-2. **No code changes needed** - your PHP files are already just HTML!
-
-3. **Deploy as static site**
+### Steps:
+1. Push your code to GitHub (already done!)
+2. Go to repository Settings → Pages
+3. Select branch `main` and folder `/ (root)`
+4. Your site will be at: `https://yourusername.github.io/lilac-photobooth`
 
 ---
 
-## Recommended: 000webhost or InfinityFree
+## Recommended: Netlify or Vercel
 
 **Best for your needs:**
 - ✅ Free
-- ✅ PHP support
+- ✅ Static HTML support (files already converted!)
 - ✅ Free SSL/HTTPS
-- ✅ Easy file upload
+- ✅ Easy GitHub integration
+- ✅ Auto-deploy on push
 - ✅ No code changes needed
 
 ---
@@ -158,8 +140,9 @@ If you want to use Netlify/Vercel/GitHub Pages:
 - Check file permissions on server
 
 ### 404 errors?
-- Ensure `index.php` is in root directory
+- Ensure `index.html` is in root directory
 - Check `.htaccess` if using Apache (may need to add)
+- For Netlify/Vercel, ensure `index.html` is the entry point
 
 
 

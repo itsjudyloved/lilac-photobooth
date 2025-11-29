@@ -16,15 +16,13 @@ A web-based photobooth application that allows users to take 3 photos with a cou
 - HTML5
 - CSS3 (with gradients and animations)
 - JavaScript (ES6+)
-- PHP (for page routing)
 - Canvas API (for photo manipulation)
 
 ## Setup
 
 1. Clone this repository
-2. Place the files in your web server directory (e.g., XAMPP's `htdocs` folder)
-3. Ensure you have a web server with PHP support
-4. Open `index.php` in your browser
+2. Place the files in your web server directory or deploy to a static hosting service
+3. Open `index.html` in your browser
 
 ## Usage
 
@@ -45,8 +43,8 @@ A web-based photobooth application that allows users to take 3 photos with a cou
 
 ```
 photobooth/
-├── index.php          # Main camera page
-├── result.php         # Result page with frame selection
+├── index.html         # Main camera page
+├── result.html        # Result page with frame selection
 ├── script.js          # Main JavaScript functionality
 ├── style.css          # Styling
 ├── assets/

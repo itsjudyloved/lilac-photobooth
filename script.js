@@ -50,8 +50,9 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('Photo slots configured with exact frame coordinates:', photoSlots);
 
   const frameImg = new Image();
-  frameImg.src = 'assets/frames/Frame 1.png';
-  frameImg.crossOrigin = 'anonymous';
+  // Encode URL to handle spaces in filename
+  frameImg.src = encodeURI('assets/frames/Frame 1.png');
+  // Remove crossOrigin for same-origin requests
 
   // Initialize camera
   async function initCamera() {
@@ -278,83 +279,153 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function createFinalStrip() {
-    // Wait for frame image to load
-    if (!frameImg.complete) {
-      await new Promise(r => {
-        frameImg.onload = r;
-        frameImg.onerror = r; // Continue even if frame fails to load
+    try {
+      console.log('Creating final strip...');
+      console.log('Canvas dimensions:', canvas.width, 'x', canvas.height);
+      
+      // Verify canvas has content
+      if (!canvas || !ctx) {
+        throw new Error('Canvas not available');
+      }
+      
+      // Don't wait for frame image - it will load on result page
+      // Just proceed with extracting photos
+      
+      // Extract individual photos from the canvas with their positions
+      const photos = [];
+      for (let i = 0; i < totalPhotos; i++) {
+        try {
+          const slot = photoSlots[i];
+          console.log(`Extracting photo ${i + 1} from slot:`, slot);
+          
+          // Verify slot is within canvas bounds
+          if (slot.x + slot.width > canvas.width || slot.y + slot.height > canvas.height) {
+            console.warn(`Photo ${i + 1} slot extends beyond canvas bounds`);
+          }
+          
+          // Get the photo from main canvas
+          let photoImageData;
+          try {
+            photoImageData = ctx.getImageData(slot.x, slot.y, slot.width, slot.height);
+          } catch (e) {
+            throw new Error(`Failed to get image data for photo ${i + 1}: ${e.message}`);
+          }
+          
+          // Create a temporary canvas for this photo
+          const photoCanvas = document.createElement('canvas');
+          photoCanvas.width = slot.width;
+          photoCanvas.height = slot.height;
+          const photoCtx = photoCanvas.getContext('2d');
+          
+          if (!photoCtx) {
+            throw new Error(`Failed to get 2d context for photo ${i + 1}`);
+          }
+          
+          photoCtx.putImageData(photoImageData, 0, 0);
+          
+          // Convert to data URL
+          let photoData;
+          try {
+            photoData = photoCanvas.toDataURL('image/png');
+            if (!photoData || photoData === 'data:,') {
+              throw new Error('Empty data URL generated');
+            }
+          } catch (e) {
+            throw new Error(`Failed to convert photo ${i + 1} to data URL: ${e.message}`);
+          }
+          
+          photos.push({
+            x: slot.x,
+            y: slot.y,
+            width: slot.width,
+            height: slot.height,
+            data: photoData
+          });
+          
+          console.log(`Photo ${i + 1} extracted successfully, data size: ${photoData.length} chars`);
+        } catch (e) {
+          console.error(`Error extracting photo ${i + 1}:`, e);
+          throw new Error(`Failed to extract photo ${i + 1}: ${e.message}`);
+        }
+      }
+      
+      if (photos.length !== totalPhotos) {
+        throw new Error(`Expected ${totalPhotos} photos but got ${photos.length}`);
+      }
+
+      // Save photobooth data in the format expected by result.html
+      const photoboothData = {
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        photos: photos
+      };
+      
+      try {
+        const dataString = JSON.stringify(photoboothData);
+        localStorage.setItem('photoboothData', dataString);
+        console.log('Photobooth data saved to localStorage, size:', dataString.length, 'chars');
+      } catch (e) {
+        // localStorage might be full or disabled
+        if (e.name === 'QuotaExceededError') {
+          throw new Error('Storage quota exceeded. Please clear some browser data.');
+        } else {
+          throw new Error(`Failed to save to localStorage: ${e.message}`);
+        }
+      }
+      
+      // Also save a fallback composite image for backward compatibility
+      try {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        // Try to draw frame if available, but don't wait for it
+        if (frameImg.complete && frameImg.naturalWidth > 0) {
+          try {
+            tempCtx.drawImage(frameImg, 0, 0, tempCanvas.width, tempCanvas.height);
+          } catch (e) {
+            console.warn('Could not draw frame in composite:', e);
+          }
+        }
+
+        // Draw photos on top of frame at their aligned positions
+        for (let i = 0; i < totalPhotos; i++) {
+          const slot = photoSlots[i];
+          const photoImageData = ctx.getImageData(slot.x, slot.y, slot.width, slot.height);
+          tempCtx.putImageData(photoImageData, slot.x, slot.y);
+        }
+
+        // Save fallback composite image
+        const imageData = tempCanvas.toDataURL('image/png');
+        localStorage.setItem('photoboothResult', imageData);
+        console.log('Fallback composite saved, size:', imageData.length, 'chars');
+      } catch (e) {
+        console.warn('Could not save fallback composite:', e);
+        // Don't fail if fallback fails - main data is saved
+      }
+      
+      // Update button
+      captureBtn.textContent = 'Processing...';
+      captureBtn.disabled = true;
+      
+      console.log('All photos processed successfully. Redirecting to result page...');
+      // Small delay to ensure localStorage is written
+      setTimeout(() => {
+        window.location.href = 'result.html';
+      }, 100);
+      
+    } catch (error) {
+      console.error('Error in createFinalStrip:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
       });
+      alert(`Error processing photos: ${error.message}\n\nPlease check the browser console for details.`);
+      captureBtn.disabled = false;
+      captureBtn.textContent = 'Take 3 Photos';
     }
-
-    // Extract individual photos from the canvas with their positions
-    const photos = [];
-    for (let i = 0; i < totalPhotos; i++) {
-      const slot = photoSlots[i];
-      // Get the photo from main canvas
-      const photoImageData = ctx.getImageData(slot.x, slot.y, slot.width, slot.height);
-      
-      // Create a temporary canvas for this photo
-      const photoCanvas = document.createElement('canvas');
-      photoCanvas.width = slot.width;
-      photoCanvas.height = slot.height;
-      const photoCtx = photoCanvas.getContext('2d');
-      photoCtx.putImageData(photoImageData, 0, 0);
-      
-      // Convert to data URL
-      const photoData = photoCanvas.toDataURL('image/png');
-      
-      photos.push({
-        x: slot.x,
-        y: slot.y,
-        width: slot.width,
-        height: slot.height,
-        data: photoData
-      });
-      
-      console.log(`Photo ${i + 1} extracted at: x=${slot.x}, y=${slot.y}, size=${slot.width}x${slot.height}`);
-    }
-
-    // Save photobooth data in the format expected by result.php
-    const photoboothData = {
-      canvasWidth: canvas.width,
-      canvasHeight: canvas.height,
-      photos: photos
-    };
-    
-    localStorage.setItem('photoboothData', JSON.stringify(photoboothData));
-    console.log('Photobooth data saved:', photoboothData);
-    
-    // Also save a fallback composite image for backward compatibility
-    // Create a temporary canvas to composite frame and photos
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
-
-    // Draw frame first as background
-    if (frameImg.complete && frameImg.naturalWidth > 0) {
-      tempCtx.drawImage(frameImg, 0, 0, tempCanvas.width, tempCanvas.height);
-    }
-
-    // Draw photos on top of frame at their aligned positions
-    for (let i = 0; i < totalPhotos; i++) {
-      const slot = photoSlots[i];
-      const photoImageData = ctx.getImageData(slot.x, slot.y, slot.width, slot.height);
-      tempCtx.putImageData(photoImageData, slot.x, slot.y);
-    }
-
-    // Save fallback composite image
-    const imageData = tempCanvas.toDataURL('image/png');
-    localStorage.setItem('photoboothResult', imageData);
-    console.log('Fallback composite saved, size:', imageData.length);
-    
-    // Update button
-    captureBtn.textContent = 'Processing...';
-    captureBtn.disabled = true;
-    
-    setTimeout(() => {
-      window.location.href = 'result.php';
-    }, 500);
   }
 
   function resetPhotobooth() {

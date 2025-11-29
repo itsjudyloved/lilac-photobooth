@@ -7,35 +7,48 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Fun Photobooth 🎉</h1>
+  <div class="container container-index">
+    <h1>The Lilac Photobooth</h1>
+    <p class="subtitle">Take 3 photos to create your photobooth strip!</p>
 
-  <div id="frame-selector">
-    <label>Choose a Frame:</label>
-    <div class="frame-options">
-      <button class="frame-btn active" data-frame="1">Frame 1</button>
-      <button class="frame-btn" data-frame="2">Frame 2</button>
-      <button class="frame-btn" data-frame="3">Frame 3</button>
-      <button class="frame-btn" data-frame="4">Frame 4</button>
+    <div id="camera-container">
+      <video id="video" autoplay playsinline></video>
+      <div id="countdown" class="countdown-overlay">
+        <div class="countdown-number"></div>
+      </div>
+      <div id="flash" class="flash"></div>
     </div>
-  </div>
 
-  <div id="camera-container">
-    <video id="video" autoplay></video>
-    <div id="countdown"></div>
-  </div>
+    <div class="button-group">
+      <button class="btn btn-primary" id="capture-btn">Take 3 Photos</button>
+      <button class="btn btn-secondary" id="retake-btn" style="display:none;">Retake All</button>
+    </div>
 
-  <div>
-    <button class="btn" id="capture-btn">Take Photo</button>
-    <button class="btn" id="skip-btn">Go to Preview</button>
-  </div>
+    <div class="progress-indicator">
+      <div class="progress-dot active" id="progress-0"></div>
+      <div class="progress-dot" id="progress-1"></div>
+      <div class="progress-dot" id="progress-2"></div>
+    </div>
 
-  <div id="preview-strip">
-    <canvas class="preview-slot" id="preview-0" width="150" height="150"></canvas>
-    <canvas class="preview-slot" id="preview-1" width="150" height="150"></canvas>
-    <canvas class="preview-slot" id="preview-2" width="150" height="150"></canvas>
-  </div>
+    <!-- 3 small preview slots -->
+    <div id="preview-strip">
+      <div class="preview-wrapper">
+        <canvas class="preview-slot" id="preview-0" width="150" height="150"></canvas>
+        <span class="preview-label">Photo 1</span>
+      </div>
+      <div class="preview-wrapper">
+        <canvas class="preview-slot" id="preview-1" width="150" height="150"></canvas>
+        <span class="preview-label">Photo 2</span>
+      </div>
+      <div class="preview-wrapper">
+        <canvas class="preview-slot" id="preview-2" width="150" height="150"></canvas>
+        <span class="preview-label">Photo 3</span>
+      </div>
+    </div>
 
-  <canvas id="canvas" width="600" height="1800" style="display:none;"></canvas>
+    <!-- Hidden canvas for full strip -->
+    <canvas id="canvas" width="600" height="1800" style="display:none;"></canvas>
+  </div>
 
   <script src="script.js"></script>
 </body>
