@@ -1,13 +1,13 @@
 # Deploy Your Photobooth to GitHub Pages
 
-Your code is now on GitHub at: **https://github.com/judyloved/lilac-photobooth**
+Your code is now on GitHub at: **https://github.com/itsjudyloved/lilac-photobooth**
 
 ## Option 1: GitHub Pages (Free & Easy)
 
 ### Steps:
 
 1. **Go to your repository on GitHub:**
-   - Visit: https://github.com/judyloved/lilac-photobooth
+   - Visit: https://github.com/itsjudyloved/lilac-photobooth
 
 2. **Enable GitHub Pages:**
    - Click on **Settings** (top menu)
@@ -23,7 +23,7 @@ Your code is now on GitHub at: **https://github.com/judyloved/lilac-photobooth**
 
 4. **Access your site:**
    - Your site will be live at:
-   - `https://judyloved.github.io/lilac-photobooth/`
+   - `https://itsjudyloved.github.io/lilac-photobooth/`
 
 ### Important Notes for GitHub Pages:
 - ✅ Free HTTPS included
@@ -117,8 +117,8 @@ Once deployed, test these features:
 
 ## Quick Links
 
-- **Your Repository:** https://github.com/judyloved/lilac-photobooth
-- **GitHub Pages:** https://judyloved.github.io/lilac-photobooth (after enabling)
+- **Your Repository:** https://github.com/itsjudyloved/lilac-photobooth
+- **GitHub Pages:** https://itsjudyloved.github.io/lilac-photobooth (after enabling)
 - **Netlify:** https://www.netlify.com
 - **Vercel:** https://vercel.com
 
