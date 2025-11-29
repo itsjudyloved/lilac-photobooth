@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fun Photobooth 🎉</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Fun Photobooth 🎉</h1>
+
+  <div id="frame-selector">
+    <label>Choose a Frame:</label>
+    <div class="frame-options">
+      <button class="frame-btn active" data-frame="1">Frame 1</button>
+      <button class="frame-btn" data-frame="2">Frame 2</button>
+      <button class="frame-btn" data-frame="3">Frame 3</button>
+      <button class="frame-btn" data-frame="4">Frame 4</button>
+    </div>
+  </div>
+
+  <div id="camera-container">
+    <video id="video" autoplay></video>
+    <div id="countdown"></div>
+  </div>
+
+  <div>
+    <button class="btn" id="capture-btn">Take Photo</button>
+    <button class="btn" id="skip-btn">Go to Preview</button>
+  </div>
+
+  <div id="preview-strip">
+    <canvas class="preview-slot" id="preview-0" width="150" height="150"></canvas>
+    <canvas class="preview-slot" id="preview-1" width="150" height="150"></canvas>
+    <canvas class="preview-slot" id="preview-2" width="150" height="150"></canvas>
+  </div>
+
+  <canvas id="canvas" width="600" height="1800" style="display:none;"></canvas>
+
+  <script src="script.js"></script>
+</body>
+</html>
